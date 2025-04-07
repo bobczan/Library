@@ -1,0 +1,81 @@
+import subprocess
+import platform
+
+def check_ipmitool_installed():
+    try:
+        # Attempt to run 'ipmitool -h' to check if ipmitool is installed
+        subprocess.run(['which', 'ipmitool'], check=True, stdout=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def install_ipmitool():
+    print("ipmitool is not installed.")
+    os_type = platform.system()
+    if os_type == "Linux":
+        print("Detected Red Hat-based OS. Installing ipmitool using yum...")
+        try:
+            subprocess.run(['sudo', 'yum', 'install', '-y', 'ipmitool'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing ipmitool: {e}")
+            return False
+    else:
+        print("This script only supports Linux distributions.")
+        return False
+    return True
+
+def set_ipmi_static_address(interface, ip, netmask, gateway):
+    """
+    Set the static IP address on the iPMI interface using ipmitool.
+    
+    :param interface: The IPMI interface name (e.g., "lan0")
+    :param ip: The static IP address
+    :param netmask: The network mask
+    :param gateway: The default gateway
+    """
+    try:
+        # Set the static IP address
+        subprocess.run(
+            ["ipmitool", "-I", interface, "lan", "set", "static"],
+            check=True
+        )
+        
+        # Set the IP address, netmask, and gateway
+        subprocess.run(
+            ["ipmitool", "-I", interface, "lan", "set", "ipsrc", "static"],
+            check=True
+        )
+        subprocess.run(
+            ["ipmitool", "-I", interface, "lan", "set", "ipaddr", ip],
+            check=True
+        )
+        subprocess.run(
+            ["ipmitool", "-I", interface, "lan", "set", "netmask", netmask],
+            check=True
+        )
+        subprocess.run(
+            ["ipmitool", "-I", interface, "lan", "set", "defgw", f"ipaddr={gateway}"],
+            check=True
+        )
+        
+        print("IPMI static IP address set successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error setting IPMI static IP address: {e}")
+
+def main():
+    # Check if ipmitool is installed
+    if not check_ipmitool_installed():
+        if not install_ipmitool():
+            return
+
+    # Ask the user for input
+    interface = input("Enter the iPMI interface name (e.g., 'lan0'): ")
+    ip = input("Enter the static IP address: ")
+    netmask = input("Enter the network mask: ")
+    gateway = input("Enter the default gateway: ")
+
+    # Set the static IP address on the iPMI interface
+    set_ipmi_static_address(interface, ip, netmask, gateway)
+
+if __name__ == "__main__":
+    main()
